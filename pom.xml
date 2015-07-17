@@ -19,6 +19,18 @@
         <developerConnection>scm:git:ssh://git@github.com/nlloyd/horn-of-mongo.git</developerConnection>
         <url>https://github.com/nlloyd/horn-of-mongo</url>
     </scm>
+    <distributionManagement>
+        <repository>
+            <id>bintray-greyfairer-maven</id>
+            <name>greyfairer-maven-mongeez</name>
+            <url>https://api.bintray.com/maven/greyfairer/maven/mongeez</url>
+        </repository>
+        <!--<repository>-->
+        <!--<id>redsys-repo</id>-->
+        <!--<name>ext-release-local</name>-->
+        <!--<url>http://build.persgroep.net/artifactory/ext-release-local</url>-->
+        <!--</repository>-->
+    </distributionManagement>
 
     <developers>
         <developer>
