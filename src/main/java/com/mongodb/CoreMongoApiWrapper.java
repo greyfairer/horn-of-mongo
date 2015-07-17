@@ -21,21 +21,16 @@
  */
 package com.mongodb;
 
-import static com.github.nlloyd.hornofmongo.bson.HornOfMongoBSONEncoder.FACTORY;
-
 import java.util.List;
 
-public class CoreMongoApiWrapper extends DBApiLayer {
+import static com.github.nlloyd.hornofmongo.bson.HornOfMongoBSONEncoder.FACTORY;
+
+public class CoreMongoApiWrapper {
     
-    protected CoreMongoApiWrapper(Mongo mongo, String name,
-            DBConnector connector) {
-        super(mongo, name, connector);
+    public static WriteResult callInsert(DBCollection collection, List<DBObject> list, boolean shouldApply) {
+        return ((DBCollectionImpl)collection).insert(list, shouldApply, collection.getWriteConcern(), FACTORY.create());
     }
 
-    public static WriteResult callInsert(DBCollection collection, List<DBObject> list, boolean shouldApply) {
-        return ((MyCollection)collection).insert(list, false, collection.getWriteConcern(), FACTORY.create());
-    }
-    
     public static CommandResult makeCommandResult(ServerAddress serverAddress) {
         return new CommandResult(serverAddress);
     }
