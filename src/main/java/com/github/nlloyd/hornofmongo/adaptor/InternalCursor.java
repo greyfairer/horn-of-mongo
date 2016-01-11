@@ -111,6 +111,7 @@ public class InternalCursor extends ScriptableMongoObject {
         return next;
     }
 
+/* GC: removed 17/11/15 deprecated in v3
     @JSFunction
     public int objsLeftInBatch() {
         int leftInBatch = 0;
@@ -130,7 +131,7 @@ public class InternalCursor extends ScriptableMongoObject {
         }
         return leftInBatch;
     }
-
+*/
     public void setCursor(DBCursor cursor) {
         this.cursor = cursor;
     }
