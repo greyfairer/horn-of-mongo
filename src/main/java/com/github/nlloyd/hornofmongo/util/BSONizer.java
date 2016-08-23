@@ -52,7 +52,6 @@ import com.github.nlloyd.hornofmongo.MongoScope;
 import com.github.nlloyd.hornofmongo.action.MongoAction;
 import com.github.nlloyd.hornofmongo.action.NewInstanceAction;
 import com.github.nlloyd.hornofmongo.adaptor.BinData;
-import com.github.nlloyd.hornofmongo.adaptor.DBPointer;
 import com.github.nlloyd.hornofmongo.adaptor.DBRef;
 import com.github.nlloyd.hornofmongo.adaptor.MaxKey;
 import com.github.nlloyd.hornofmongo.adaptor.MinKey;
@@ -65,6 +64,10 @@ import com.github.nlloyd.hornofmongo.exception.MongoScopeException;
 import com.mongodb.BasicDBObject;
 import com.mongodb.Bytes;
 
+//GC: added 17/11/15
+import org.apache.commons.lang3.time.DateUtils;
+import org.apache.commons.lang3.time.DateFormatUtils;
+
 /**
  * @author nlloyd
  * 
@@ -72,13 +75,17 @@ import com.mongodb.Bytes;
 public class BSONizer {
 
     public static Object convertJStoBSON(Object jsObject, boolean isJsObj) {
+        return convertJStoBSON(jsObject, isJsObj, null);
+    }
+
+    public static Object convertJStoBSON(Object jsObject, boolean isJsObj, String dateFormat) {
         Object bsonObject = null;
         if (jsObject instanceof NativeArray) {
             NativeArray jsArray = (NativeArray) jsObject;
             List<Object> bsonArray = new ArrayList<Object>(Long.valueOf(
                     jsArray.getLength()).intValue());
             for (Object jsEntry : jsArray) {
-                bsonArray.add(convertJStoBSON(jsEntry, isJsObj));
+                bsonArray.add(convertJStoBSON(jsEntry, isJsObj, dateFormat));
             }
             bsonObject = bsonArray;
         } else if (jsObject instanceof NativeRegExp) {
@@ -97,13 +104,31 @@ public class BSONizer {
             bsonObject = bson;
 
             NativeObject rawJsObject = (NativeObject) jsObject;
-            for (Object key : rawJsObject.keySet()) {
+            for (Object key : rawJsObject.keySet()) 
+            {
                 Object value = extractJSProperty(rawJsObject, key);
-                bson.put(key.toString(), convertJStoBSON(value, isJsObj));
+
+                //GC: 17/11/15 allow for UTC $date object
+                if(key.equals("$date"))
+                {
+                    try
+                    {
+                        bsonObject = DateUtils.parseDate(value.toString(), 
+                            new String[] {"yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"});
+                    }
+                    catch(java.text.ParseException e)
+                    {
+                        bson.put(key.toString(), convertJStoBSON(value, isJsObj, dateFormat));
+                    }
+                }
+                else
+                {
+                    bson.put(key.toString(), convertJStoBSON(value, isJsObj, dateFormat));
+                }
             }
         } else if (jsObject instanceof ScriptableMongoObject) {
             bsonObject = convertScriptableMongoToBSON(
-                    (ScriptableMongoObject) jsObject, isJsObj);
+                    (ScriptableMongoObject) jsObject, isJsObj, dateFormat);
         } else if (jsObject instanceof BaseFunction) {
             BaseFunction funcObject = (BaseFunction) jsObject;
             Object classPrototype = ScriptableObject.getClassPrototype(
@@ -114,7 +139,7 @@ public class BSONizer {
                 // MaxKey are provided without explicit constructor calls
                 // index_check3.js does this
                 bsonObject = convertScriptableMongoToBSON(
-                        (ScriptableMongoObject) classPrototype, isJsObj);
+                        (ScriptableMongoObject) classPrototype, isJsObj, dateFormat);
             } else {
                 // comes from eval calls
                 String decompiledCode = (String) MongoRuntime
@@ -126,7 +151,11 @@ public class BSONizer {
             // ScriptableObjects above...
             String jsClassName = ((ScriptableObject) jsObject).getClassName();
             if ("Date".equals(jsClassName)) {
-                bsonObject = Context.jsToJava(jsObject, Date.class);
+                Date dt = (Date)Context.jsToJava(jsObject, Date.class);
+                bsonObject = dt;
+                //GC: 18/11/15 use dateFormat parameter to format date fields
+                if(dateFormat != null && dateFormat.length() > 0)
+                    bsonObject = DateFormatUtils.formatUTC(dt, dateFormat);
             } else {
                 Context.throwAsScriptRuntimeEx(new MongoScopeException(
                         "bsonizer couldnt convert js class: " + jsClassName));
@@ -205,14 +234,9 @@ public class BSONizer {
             com.mongodb.DBRef dbRef = (com.mongodb.DBRef) bsonObject;
             Object id = convertBSONtoJS(mongoScope, dbRef.getId());
             jsObject = MongoRuntime.call(new NewInstanceAction(mongoScope,
-                    "DBRef", new Object[] { dbRef.getRef(), id }));
-        } else if (bsonObject instanceof com.mongodb.DBPointer) {
-            com.mongodb.DBPointer dbPointer = (com.mongodb.DBPointer) bsonObject;
-            ObjectId oid = (ObjectId) MongoRuntime.call(new NewInstanceAction(
-                    mongoScope, "ObjectId"));
-            oid.setRealObjectId(dbPointer.getId());
-            jsObject = MongoRuntime.call(new NewInstanceAction(mongoScope,
-                    "DBPointer", new Object[] { dbPointer.getRef(), oid }));
+//GC: changed 16/11/15 for v3
+//                    "DBRef", new Object[] { dbRef.getRef(), id }));
+                    "DBRef", new Object[] { dbRef.getCollectionName(), id }));
         } else if (bsonObject instanceof BSONTimestamp) {
             BSONTimestamp bsonTstamp = (BSONTimestamp) bsonObject;
             jsObject = MongoRuntime.call(new NewInstanceAction(mongoScope,
@@ -279,7 +303,7 @@ public class BSONizer {
 
     @SuppressWarnings("deprecation")
     private static Object convertScriptableMongoToBSON(
-            ScriptableMongoObject jsMongoObj, boolean isJsObj) {
+            ScriptableMongoObject jsMongoObj, boolean isJsObj, String dateFormat) {
         Object bsonObject = null;
         if (jsMongoObj instanceof ObjectId) {
             bsonObject = ((ObjectId) jsMongoObj).getRealObjectId();
@@ -306,12 +330,10 @@ public class BSONizer {
             bsonObject = Long.valueOf(((NumberLong) jsMongoObj).getRealLong());
         } else if (jsMongoObj instanceof DBRef) {
             DBRef jsRef = (DBRef) jsMongoObj;
-            Object id = convertJStoBSON(jsRef.getId(), isJsObj);
-            bsonObject = new com.mongodb.DBRef(null, jsRef.getNs(), id);
-        } else if (jsMongoObj instanceof DBPointer) {
-            DBPointer jsPointer = (DBPointer) jsMongoObj;
-            bsonObject = new com.mongodb.DBPointer(jsPointer.getNs(), jsPointer
-                    .getId().getRealObjectId());
+            Object id = convertJStoBSON(jsRef.getId(), isJsObj, dateFormat);
+//GC: changed 16/11/15 for v3
+//            bsonObject = new com.mongodb.DBRef(null, jsRef.getNs(), id);
+            bsonObject = new com.mongodb.DBRef(jsRef.getNs(), id);
         } else if (jsMongoObj instanceof Timestamp) {
             bsonObject = convertTimestampToBSONTimestamp((Timestamp) jsMongoObj);
         }
