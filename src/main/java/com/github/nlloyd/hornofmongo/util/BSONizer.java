@@ -21,14 +21,24 @@
  */
 package com.github.nlloyd.hornofmongo.util;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
-import java.util.regex.Pattern;
-
+import com.github.nlloyd.hornofmongo.MongoRuntime;
+import com.github.nlloyd.hornofmongo.MongoScope;
+import com.github.nlloyd.hornofmongo.action.MongoAction;
+import com.github.nlloyd.hornofmongo.action.NewInstanceAction;
+import com.github.nlloyd.hornofmongo.adaptor.BinData;
+import com.github.nlloyd.hornofmongo.adaptor.DBRef;
+import com.github.nlloyd.hornofmongo.adaptor.MaxKey;
+import com.github.nlloyd.hornofmongo.adaptor.MinKey;
+import com.github.nlloyd.hornofmongo.adaptor.NumberInt;
+import com.github.nlloyd.hornofmongo.adaptor.NumberLong;
+import com.github.nlloyd.hornofmongo.adaptor.ObjectId;
+import com.github.nlloyd.hornofmongo.adaptor.ScriptableMongoObject;
+import com.github.nlloyd.hornofmongo.adaptor.Timestamp;
+import com.github.nlloyd.hornofmongo.exception.MongoScopeException;
+import com.mongodb.BasicDBObject;
+import com.mongodb.Bytes;
+import org.apache.commons.lang3.time.DateFormatUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.bson.BSON;
 import org.bson.BSONObject;
 import org.bson.types.BSONTimestamp;
@@ -47,26 +57,15 @@ import org.mozilla.javascript.Undefined;
 import org.mozilla.javascript.Wrapper;
 import org.mozilla.javascript.regexp.NativeRegExp;
 
-import com.github.nlloyd.hornofmongo.MongoRuntime;
-import com.github.nlloyd.hornofmongo.MongoScope;
-import com.github.nlloyd.hornofmongo.action.MongoAction;
-import com.github.nlloyd.hornofmongo.action.NewInstanceAction;
-import com.github.nlloyd.hornofmongo.adaptor.BinData;
-import com.github.nlloyd.hornofmongo.adaptor.DBRef;
-import com.github.nlloyd.hornofmongo.adaptor.MaxKey;
-import com.github.nlloyd.hornofmongo.adaptor.MinKey;
-import com.github.nlloyd.hornofmongo.adaptor.NumberInt;
-import com.github.nlloyd.hornofmongo.adaptor.NumberLong;
-import com.github.nlloyd.hornofmongo.adaptor.ObjectId;
-import com.github.nlloyd.hornofmongo.adaptor.ScriptableMongoObject;
-import com.github.nlloyd.hornofmongo.adaptor.Timestamp;
-import com.github.nlloyd.hornofmongo.exception.MongoScopeException;
-import com.mongodb.BasicDBObject;
-import com.mongodb.Bytes;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.UUID;
+import java.util.regex.Pattern;
 
 //GC: added 17/11/15
-import org.apache.commons.lang3.time.DateUtils;
-import org.apache.commons.lang3.time.DateFormatUtils;
 
 /**
  * @author nlloyd
@@ -234,8 +233,6 @@ public class BSONizer {
             com.mongodb.DBRef dbRef = (com.mongodb.DBRef) bsonObject;
             Object id = convertBSONtoJS(mongoScope, dbRef.getId());
             jsObject = MongoRuntime.call(new NewInstanceAction(mongoScope,
-//GC: changed 16/11/15 for v3
-//                    "DBRef", new Object[] { dbRef.getRef(), id }));
                     "DBRef", new Object[] { dbRef.getCollectionName(), id }));
         } else if (bsonObject instanceof BSONTimestamp) {
             BSONTimestamp bsonTstamp = (BSONTimestamp) bsonObject;
@@ -331,8 +328,6 @@ public class BSONizer {
         } else if (jsMongoObj instanceof DBRef) {
             DBRef jsRef = (DBRef) jsMongoObj;
             Object id = convertJStoBSON(jsRef.getId(), isJsObj, dateFormat);
-//GC: changed 16/11/15 for v3
-//            bsonObject = new com.mongodb.DBRef(null, jsRef.getNs(), id);
             bsonObject = new com.mongodb.DBRef(jsRef.getNs(), id);
         } else if (jsMongoObj instanceof Timestamp) {
             bsonObject = convertTimestampToBSONTimestamp((Timestamp) jsMongoObj);

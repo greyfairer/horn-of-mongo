@@ -21,18 +21,15 @@
  */
 package com.github.nlloyd.hornofmongo.adaptor;
 
-import java.util.List;
-
-import org.mozilla.javascript.ScriptableObject;
-import org.mozilla.javascript.Undefined;
-import org.mozilla.javascript.annotations.JSConstructor;
-import org.mozilla.javascript.annotations.JSFunction;
-
 import com.github.nlloyd.hornofmongo.MongoScope;
 import com.github.nlloyd.hornofmongo.util.BSONizer;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoException;
+import org.mozilla.javascript.ScriptableObject;
+import org.mozilla.javascript.Undefined;
+import org.mozilla.javascript.annotations.JSConstructor;
+import org.mozilla.javascript.annotations.JSFunction;
 
 /**
  * @author nlloyd
@@ -111,27 +108,6 @@ public class InternalCursor extends ScriptableMongoObject {
         return next;
     }
 
-/* GC: removed 17/11/15 deprecated in v3
-    @JSFunction
-    public int objsLeftInBatch() {
-        int leftInBatch = 0;
-        if (cursor == null) {
-            leftInBatch = fauxFindOneReturned ? 0 : 1;
-        } else {
-            if (cursor.hasNext()) {
-                List<Integer> batchSizes = cursor.getSizes();
-                int currentBatchIdx = cursor.numGetMores();
-                int currentBatchSize = batchSizes.get(currentBatchIdx);
-                int countUpToCurBatch = 0;
-                for (int i = 0; i < currentBatchIdx; i++)
-                    countUpToCurBatch += batchSizes.get(i);
-                leftInBatch = currentBatchSize
-                        - (cursor.numSeen() - countUpToCurBatch);
-            }
-        }
-        return leftInBatch;
-    }
-*/
     public void setCursor(DBCursor cursor) {
         this.cursor = cursor;
     }

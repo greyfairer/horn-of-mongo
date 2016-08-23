@@ -21,24 +21,6 @@
  */
 package com.github.nlloyd.hornofmongo.adaptor;
 
-//GC: 16/11/15 removed for v3
-//import static com.mongodb.CoreMongoApiWrapper.callInsert;
-//import static com.mongodb.CoreMongoApiWrapper.makeCommandResult;
-
-import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.NoSuchElementException;
-
-import org.mozilla.javascript.Context;
-import org.mozilla.javascript.Scriptable;
-import org.mozilla.javascript.ScriptableObject;
-import org.mozilla.javascript.Undefined;
-import org.mozilla.javascript.annotations.JSConstructor;
-import org.mozilla.javascript.annotations.JSFunction;
-
 import com.github.nlloyd.hornofmongo.MongoRuntime;
 import com.github.nlloyd.hornofmongo.MongoScope;
 import com.github.nlloyd.hornofmongo.action.NewInstanceAction;
@@ -57,6 +39,19 @@ import com.mongodb.MongoException;
 import com.mongodb.MongoOptions;
 import com.mongodb.ServerAddress;
 import com.mongodb.WriteConcern;
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.ScriptableObject;
+import org.mozilla.javascript.Undefined;
+import org.mozilla.javascript.annotations.JSConstructor;
+import org.mozilla.javascript.annotations.JSFunction;
+
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * JavaScript host Mongo object that acts as an adaptor between the JavaScript
@@ -135,8 +130,6 @@ public class Mongo extends ScriptableMongoObject {
     }
 
     private void initMongoConnection() throws UnknownHostException {
-//GC: 16/11/15 DBConnector removed in v3
-//        if ((innerMongo == null) || !innerMongo.getConnector().isOpen()) {
         if ((innerMongo == null)) {
 	        MongoClientOptions.Builder builder = MongoClientOptions.builder();
 	        if (mongoOptions != null) {
@@ -148,9 +141,6 @@ public class Mongo extends ScriptableMongoObject {
 		        builder.connectTimeout(mongoOptions.connectTimeout);
 		        builder.socketTimeout(mongoOptions.socketTimeout);
 		        builder.socketKeepAlive(mongoOptions.socketKeepAlive);
-//GC: 16/11/15 options removed in v3
-//		        builder.autoConnectRetry(mongoOptions.autoConnectRetry);
-//		        builder.maxAutoConnectRetryTime(mongoOptions.maxAutoConnectRetryTime);
 	        }
 	        MongoClientOptions clientOptions = builder
 			        .dbEncoderFactory(HornOfMongoBSONEncoder.FACTORY).build();
@@ -234,9 +224,6 @@ public class Mongo extends ScriptableMongoObject {
                         "InternalCursor", new Object[] { jsCmdResult }));
             } catch (NoSuchElementException nse) {
                 // thrown when db.runCommand() called (no arguments)
-//GC: 16/11/15 fixed for v3
-//                CommandResult failedCmdResult = new CommandResult(this.hosts
-//                        .iterator().next());
                 CommandResult failedCmdResult = db.command(this.hosts
                         .iterator().next().toString());
                 failedCmdResult.put("ok", Boolean.FALSE);
@@ -295,9 +282,6 @@ public class Mongo extends ScriptableMongoObject {
             // argument in insert calls so we need to translate system.indexes
             // inserts into index creation calls through the java driver
             if (collectionName.endsWith("system.indexes")) {
-//GC: 17/11/15 fixed for v3
-//                callInsert(db.getCollection("system.indexes"),
-//                        Arrays.asList(bsonObj), false);
                   db.getCollection("system.indexes").insert(Arrays.asList(bsonObj));
             } else {
                 int oldOptions = collection.getOptions();
@@ -308,8 +292,6 @@ public class Mongo extends ScriptableMongoObject {
                     insertObj = (List) rawObj;
                 else
                     insertObj = Arrays.asList(rawObj);
-//GC: 17/11/15 fixed for v3
-//                callInsert(collection, insertObj, false);
                 collection.insert(insertObj);
                 collection.setOptions(oldOptions);
             }
@@ -368,43 +350,6 @@ public class Mongo extends ScriptableMongoObject {
     }
 
     /**
-     * Root js api authenticate function. Returns nothing, only throws an
-     * exception on authentication failure.
-     * 
-     * @param authObj
-     */
-/* GC: 16/11/15 removed for v3
-    @JSFunction
-    public void auth(final Object authObj) {
-        DBObject bsonAuth = (DBObject) BSONizer.convertJStoBSON(authObj, false);
-        DB db = innerMongo.getDB(bsonAuth.get("userSource").toString());
-        // hackety hack hack hack... we need a fresh, unauthenticated Mongo
-        // instance
-        // since the java driver does not support multiple calls to
-        // db.authenticateCommand()
-        if (db.isAuthenticated()) {
-	        if (hosts == null) {
-		        //Save hosts and options for reconstruction after close
-		        hosts = innerMongo.getServerAddressList();
-		        mongoOptions = innerMongo.getMongoOptions();
-            }
-            close();
-	        try {
-                initMongoConnection();
-            } catch (UnknownHostException e) {
-                // we should never get here
-                e.printStackTrace();
-            }
-            db = innerMongo.getDB(bsonAuth.get("userSource").toString());
-        }
-
-        Object user = bsonAuth.get("user");
-        Object pwd = bsonAuth.get("pwd");
-        db.authenticateCommand((user == null ? null : user.toString()),
-                (pwd == null ? null : pwd.toString().toCharArray()));
-    }
-*/
-    /**
      * Run the { logout: 1 } command against the db with the given name.
      * 
      * @param dbName
@@ -413,27 +358,10 @@ public class Mongo extends ScriptableMongoObject {
     @JSFunction
     public Object logout(final String dbName) {
         DB db = innerMongo.getDB(dbName);
-//GC: 16/11/15 fixed for v3
-//        CommandResult result = db.command(new BasicDBObject("logout", 1), innerMongo.getOptions());
         CommandResult result = db.command(new BasicDBObject("logout", 1), innerMongo.getReadPreference());
         return BSONizer.convertBSONtoJS(mongoScope, result);
     }
 
-/*GC: 16/11/15 removed for v3
-    private static enum ResetIndexCacheCommand {
-        drop, deleteIndexes;
-    }
-*/
-/*GC: 16/11/15 removed for v3
-    private void handlePostCommandActions(DB db, DBObject bsonQuery) {
-        for (ResetIndexCacheCommand command : ResetIndexCacheCommand.values()) {
-            String commandName = command.toString();
-            if (bsonQuery.containsField(commandName))
-                db.getCollection(bsonQuery.get(commandName).toString())
-                        .resetIndexCache();
-        }
-    }
-*/
     private void handleMongoException(MongoException me) {
         if (mongoScope == null)
             mongoScope = (MongoScope) ScriptableObject.getTopLevelScope(this);
