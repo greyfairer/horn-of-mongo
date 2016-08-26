@@ -10,7 +10,7 @@
 
     <groupId>com.github.nlloyd</groupId>
     <artifactId>horn-of-mongo</artifactId>
-    <version>1.4-SNAPSHOT</version>
+    <version>1.4</version>
     <packaging>jar</packaging>
 
     <name>horn-of-mongo</name>
